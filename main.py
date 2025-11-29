@@ -64,7 +64,7 @@ class Discourse:
                     time.sleep(wait_seconds)
                     continue
 
-                if not resp or page == 76:
+                if not resp:
                     status = False
 
             except json.decoder.JSONDecodeError:
