@@ -7,12 +7,15 @@ import pandas as pd
 import pytz
 import calendar
 import logging
+from rich.logging import RichHandler
 from dateutil import parser as date_parser
 from datetime import datetime
 
 logging.basicConfig(
     level=logging.INFO,
-    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    format="%(message)s",
+    datefmt="[%Y-%m-%d %H:%M:%S]",
+    handlers=[RichHandler(rich_tracebacks=True)]
 )
 logger = logging.getLogger("discourse-email-collector")
 
@@ -56,14 +59,12 @@ class Discourse:
             try:
                 resp = response.json()
                 if isinstance(resp, dict) and resp.get("errors"):
-                    errors = resp["errors"][0]
                     wait_seconds = resp["extras"]["wait_seconds"]
-                    self.logger.warning(f"Rate limit: {errors}. Waiting {wait_seconds}s")
+                    self.logger.warning(f"Rate limit: waiting {wait_seconds}s")
                     time.sleep(wait_seconds)
                     continue
 
                 if not resp or page == 76:
-                    self.logger.info("Pagination stopped")
                     status = False
 
             except json.decoder.JSONDecodeError:
@@ -96,9 +97,6 @@ class Discourse:
                 self.logger.error(f"TypeError: {e}")
                 continue
 
-            if resp.status_code != 200:
-                self.logger.warning(f"Non-200 status: {resp.status_code}")
-
             try:
                 status = resp.json()
             except json.decoder.JSONDecodeError:
@@ -120,7 +118,6 @@ class Discourse:
                 created_at = status["created_at"]
                 parsed_date = date_parser.parse(created_at)
                 year, month, day = str(parsed_date.date()).split("-")
-
                 ts = calendar.timegm(
                     datetime(int(year), int(month), int(day), tzinfo=pytz.utc).timetuple()
                 )
@@ -148,14 +145,12 @@ class Discourse:
         self.logger.info(f"Final listed count: {len(listed)}")
         return listed
 
-
 if __name__ == "__main__":
     discourse = Discourse("system")
     data = discourse.get_list_of_users_email("active")
     df = pd.json_normalize(data)
     df = df.applymap(clean_illegal_chars)
     df.columns = [clean_illegal_chars(c) for c in df.columns]
-
     logger.info("Saving ubuntu-kr-discourse.xlsx")
     df.to_excel("ubuntu-kr-discourse.xlsx", index=False)
     logger.info("Excel export complete")
