@@ -147,8 +147,19 @@ class Discourse:
 
 if __name__ == "__main__":
     _base_url = input("Enter Discourse base URL: ")
+    _if_utc_timestemp = int(input("Enter 1 to specify a custom UTC timestamp, or 0 otherwise: "))
+    _utc_timestemp: int | None = None
+    if _if_utc_timestemp == 0:
+        _utc_timestemp = None
+    elif _if_utc_timestemp == 1:
+        __utc_timestemp = int(time.time())
+        _utc_timestemp = int(input(f"Enter the UTC timestamp (current UTC Timestemp {__utc_timestemp}): "))
+    else:
+        logger.error("Invalid input for UTC timestamp. Please enter 0 or 1.")
+        exit(1)
+
     discourse = Discourse("system")
-    data = discourse.get_list_of_users_email("active")
+    data = discourse.get_list_of_users_email("active", _utc_timestemp)
 
     df = pd.json_normalize(data)
     df = df.applymap(clean_illegal_chars)
