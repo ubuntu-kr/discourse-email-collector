@@ -158,7 +158,7 @@ if __name__ == "__main__":
         logger.error("Invalid input for UTC timestamp. Please enter 0 or 1.")
         exit(1)
 
-    discourse = Discourse("system")
+    discourse = Discourse("system", _base_url)
     data = discourse.get_list_of_users_email("active", _utc_timestemp)
 
     df = pd.json_normalize(data)
