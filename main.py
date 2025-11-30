@@ -27,18 +27,18 @@ def clean_illegal_chars(value):
     return value
 
 class Discourse:
-    def __init__(self, username: str):
+    def __init__(self, username: str, base_url: str):
         self.logger = logger
-        self.base_url = "discourse.ubuntu-kr.org"
+        self.base_url = base_url
         self.headers = {
-            "User-Agent": "ubuntu-kr-discourse-email-collector/0.0.1",
+            "User-Agent": "discourse-email-collector/0.0.1",
             "Api-Key": os.environ["DISCOURSE_API_KEY"],
             "Api-Username": username
         }
         self.client = httpx.Client(headers=self.headers)
         self.logger.info(f"Initialized Discourse client with user: {username}")
 
-    def get_list_of_users_email(self, flag: str) -> list[dict]:
+    def get_list_of_users_email(self, flag: str, _utc_timestemp: int | None = None) -> list[dict]:
         self.logger.info(f"Fetching user list (flag={flag})")
         listed = []
         json_data = []
@@ -122,7 +122,7 @@ class Discourse:
                     datetime(int(year), int(month), int(day), tzinfo=pytz.utc).timetuple()
                 )
 
-                if ts <= 1764336976:
+                if ts <= _utc_timestemp if _utc_timestemp else int(time.time()):
                     if external_ids:
                         self.logger.info(f"ADD: {index['username']}")
                         listed.append({
@@ -146,11 +146,14 @@ class Discourse:
         return listed
 
 if __name__ == "__main__":
+    _base_url = input("Enter Discourse base URL: ")
     discourse = Discourse("system")
     data = discourse.get_list_of_users_email("active")
+
     df = pd.json_normalize(data)
     df = df.applymap(clean_illegal_chars)
     df.columns = [clean_illegal_chars(c) for c in df.columns]
-    logger.info("Saving ubuntu-kr-discourse.xlsx")
-    df.to_excel("ubuntu-kr-discourse.xlsx", index=False)
+    
+    logger.info(f"Saving {_base_url.replace(".", "_")}_email_list.xlsx")
+    df.to_excel(f"{_base_url.replace(".", "_")}_email_list.xlsx", index=False)
     logger.info("Excel export complete")
